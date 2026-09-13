@@ -40,15 +40,15 @@
 
 /* ---------------------------------------------------------------- pages */
 
-.book .page {
+:is(.book, .spread-preview) .page {
   overflow: hidden;
   background: var(--paper);
   box-shadow: 0 12px 30px rgb(0 0 0 / 0.35);
 }
 
 /* Shade towards the spine */
-.book .page.--left { background: linear-gradient(to left, var(--paper-shade), transparent 7%), var(--paper); }
-.book .page.--right { background: linear-gradient(to right, var(--paper-shade), transparent 7%), var(--paper); }
+:is(.book, .spread-preview) .page.--left { background: linear-gradient(to left, var(--paper-shade), transparent 7%), var(--paper); }
+:is(.book, .spread-preview) .page.--right { background: linear-gradient(to right, var(--paper-shade), transparent 7%), var(--paper); }
 
 .page-canvas {
   position: absolute;
@@ -131,8 +131,8 @@
 
 /* ---------------------------------------------------------------- covers */
 
-.book .page.cover,
-.book .page.back-cover {
+:is(.book, .spread-preview) .page.cover,
+:is(.book, .spread-preview) .page.back-cover {
   background: linear-gradient(135deg, var(--cover), var(--cover-dark));
 }
 
@@ -156,7 +156,7 @@
 .page.cover h1 { font-family: var(--font-serif); font-size: 96px; }
 .page.cover .subtitle { font-size: 36px; opacity: 0.8; }
 
-.book .page.endpaper {
+:is(.book, .spread-preview) .page.endpaper {
   background:
     radial-gradient(circle at 25% 25%, rgb(255 255 255 / 0.18) 2px, transparent 3px) 0 0 / 40px 40px,
     var(--endpaper);
@@ -181,4 +181,36 @@
   background: #fff1f0;
   color: #8a1c12;
   font-family: system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------- presenter previews */
+
+.spread-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2000px;
+  height: 1414px;
+  transform-origin: 0 0;
+}
+
+.spread-preview .page {
+  position: absolute;
+  top: 0;
+  width: 1000px;
+  height: 1414px;
+}
+
+.spread-preview .page.--left { left: 0; }
+.spread-preview .page.--right { left: 1000px; }
+
+.p-note + .p-note { margin-top: 20px; }
+
+.p-note strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a8a8a;
 }

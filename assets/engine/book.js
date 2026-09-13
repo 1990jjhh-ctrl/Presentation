@@ -184,10 +184,62 @@ function spreadChanged({ silent }) {
 
 // Re-renders everything that depends on the visible spread
 function refresh() {
-  if (presenter) {
-    const visible = model.spreadPages(start, count).map((p) => p + 1);
-    presenter.count.textContent = `${visible.length === 1 ? 'Page' : 'Pages'} ${visible.join('–')} of ${count}`;
-  }
+  if (presenter) refreshPresenter();
+}
+
+// ---------------------------------------------------------------- presenter view
+
+function buildPresenterPreviews() {
+  presenter.next.querySelector('.p-end').textContent = 'End of book';
+  presenter.currentView = addPreview(presenter.current);
+  presenter.nextView = addPreview(presenter.next);
+}
+
+function addPreview(pane) {
+  pane.insertAdjacentHTML('beforeend', '<div class="viewport spread-viewport"><div class="spread-preview"></div></div>');
+  const viewport = pane.lastElementChild;
+  const spread = viewport.firstElementChild;
+  Deck.fitToViewport(viewport, spread, model.PAGE_WIDTH * 2, model.PAGE_HEIGHT);
+  return spread;
+}
+
+// Static copy of a spread, with each page where the open book would show it
+function renderSpread(target, spreadStart) {
+  const visible = model.spreadPages(spreadStart, count);
+  target.replaceChildren(...visible.map((index, i) => {
+    const side = visible.length === 2
+      ? (i === 0 ? 'left' : 'right')
+      : (index === 0 ? 'right' : 'left');
+    const copy = document.createElement('div');
+    copy.className = `preview-page ${pages[index].className} --${side}`;
+    copy.dataset.index = String(index);
+    copy.append(pages[index].querySelector('.page-canvas').cloneNode(true));
+    return copy;
+  }));
+}
+
+function refreshPresenter() {
+  const visible = model.spreadPages(start, count);
+  const next = model.nextSpread(start, count);
+  const isEnd = next === start;
+
+  renderSpread(presenter.currentView, start);
+  presenter.next.classList.toggle('is-end', isEnd);
+  if (!isEnd) renderSpread(presenter.nextView, next);
+
+  const labels = model.notesLabels(start, count);
+  presenter.notes.replaceChildren(...visible.map((index, i) => {
+    const block = document.createElement('div');
+    block.className = 'p-note';
+    const label = document.createElement('strong');
+    label.textContent = labels[i];
+    const text = pages[index].querySelector('.notes')?.textContent.trim().replace(/[ \t]+/g, ' ');
+    block.append(label, document.createTextNode(text || '—'));
+    return block;
+  }));
+
+  const numbers = visible.map((p) => p + 1);
+  presenter.count.textContent = `${numbers.length === 1 ? 'Page' : 'Pages'} ${numbers.join('–')} of ${count}`;
 }
 
 // ---------------------------------------------------------------- mode
@@ -205,6 +257,7 @@ Deck.modes.book = {
 
     if (panes) {
       presenter = panes;
+      buildPresenterPreviews();
     } else {
       buildScene();
       createBook();
