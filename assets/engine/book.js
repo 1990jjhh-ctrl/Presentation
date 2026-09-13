@@ -20,6 +20,7 @@ let pendingRemote = null; // spread requested by the other window; not echoed ba
 let queued = null;        // turn requested while a page was still moving
 let ready = false;
 let zoom = null;          // { page, index } of the zoomed [data-zoom] element
+let queuedZoom = null;    // zoom requested while a page was still turning
 
 const state = () => ({ type: 'state', page: start });
 const isBusy = () => pageFlip !== null && BUSY_STATES.includes(pageFlip.getState());
@@ -134,6 +135,11 @@ function onState(flipState) {
     const { target, silent } = queued;
     queued = null;
     turnTo(target, { silent });
+  }
+  if (queuedZoom) {
+    const { page, index, silent } = queuedZoom;
+    queuedZoom = null;
+    queueMicrotask(() => zoomTo(page, index, { silent }));
   }
 }
 
@@ -298,11 +304,20 @@ function setupPresenterZoom() {
 }
 
 function zoomTo(page, index, { silent = false } = {}) {
-  if (!model.spreadPages(start, count).includes(page)) return;
+  // A page is still turning: apply the zoom once the book is at rest
+  if (isBusy()) {
+    queuedZoom = { page, index, silent };
+    return;
+  }
+
+  const el = model.spreadPages(start, count).includes(page) ? zoomables(pages[page])[index] : null;
+  if (!el) {
+    // The audience tells the window that asked what it really shows
+    if (silent && pageFlip) Deck.send(zoomState());
+    return;
+  }
 
   if (pageFlip) {
-    const el = zoomables(pages[page])[index];
-    if (!el || isBusy()) return;
     if (zoom) setMedia(zoomables(pages[zoom.page])[zoom.index], false);
     zoom = { page, index };
     els.viewport.classList.add('is-zoomed');
@@ -316,6 +331,7 @@ function zoomTo(page, index, { silent = false } = {}) {
 }
 
 function zoomOut({ silent = false } = {}) {
+  queuedZoom = null;
   if (!zoom) return;
   if (pageFlip) {
     setMedia(zoomables(pages[zoom.page])[zoom.index], false);

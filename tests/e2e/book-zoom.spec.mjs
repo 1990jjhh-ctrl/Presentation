@@ -86,3 +86,35 @@ test('clicking a section in the presenter preview zooms the audience window', as
   await expect.poll(() => zoomState(page)).toBeNull();
   await expect(presenter.locator('.p-current .is-zoom-target')).toHaveCount(0);
 });
+
+test('moving the mouse while zoomed brings the idle cursor back', async ({ page }) => {
+  await openSpread(page);
+  await page.locator('.book [data-zoom]').first().click();
+  await page.waitForTimeout(2300);
+  await expect(page.locator('body')).toHaveClass(/idle/);
+  await page.mouse.move(20, 20);
+  await expect(page.locator('body')).not.toHaveClass(/idle/);
+});
+
+test('the idle cursor also hides over zoomable sections', async ({ page }) => {
+  await openSpread(page);
+  const section = page.locator('.book [data-zoom]').first();
+  await page.evaluate(() => document.body.classList.add('idle'));
+  expect(await section.evaluate((el) => getComputedStyle(el).cursor)).toBe('none');
+});
+
+test('a presenter zoom sent while the audience is turning applies after the turn', async ({ page, context }) => {
+  await page.goto('/presentation.html#2');
+  await page.waitForFunction(() => window.Deck?.book?.count > 0 && window.Deck.book.idle);
+  const presenter = await context.newPage();
+  await presenter.goto('/presentation.html?presenter#2');
+  await expect(presenter.locator('.p-count')).toHaveText('Pages 2–3 of 8');
+
+  await presenter.bringToFront();
+  await presenter.keyboard.press('ArrowRight');
+  await expect(presenter.locator('.p-count')).toHaveText('Pages 4–5 of 8');
+  await presenter.locator('.p-current .preview-page[data-index="3"] [data-zoom]').first().click();
+
+  await expect.poll(() => zoomState(page)).toEqual({ page: 3, index: 0 });
+  await expect(presenter.locator('.p-current .is-zoom-target')).toHaveCount(1);
+});

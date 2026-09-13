@@ -166,11 +166,12 @@ addEventListener('hashchange', () => mode?.goToHash(Deck.hashNumber(), { silent:
 
 if (!Deck.isPresenter) {
   let idleTimer;
+  // Capture phase, so book mode's zoom (which stops mousemove propagation) cannot mute it
   addEventListener('mousemove', () => {
     document.body.classList.remove('idle');
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => document.body.classList.add('idle'), 2000);
-  });
+  }, true);
 }
 
 // ---------------------------------------------------------------- start

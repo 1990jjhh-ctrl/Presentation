@@ -245,6 +245,8 @@
 .viewport.is-zoomed .book [data-zoom]:hover,
 body.idle .book [data-zoom]:hover { outline: none; }
 
+body.idle .book [data-zoom] { cursor: none; }
+
 .spread-preview [data-zoom].is-zoom-target {
   outline: 8px solid var(--accent);
   outline-offset: 12px;
