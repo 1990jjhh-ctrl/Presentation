@@ -19,6 +19,7 @@ const els = {};
 let pendingRemote = null; // spread requested by the other window; not echoed back
 let queued = null;        // turn requested while a page was still moving
 let ready = false;
+let zoom = null;          // { page, index } of the zoomed [data-zoom] element
 
 const state = () => ({ type: 'state', page: start });
 const isBusy = () => pageFlip !== null && BUSY_STATES.includes(pageFlip.getState());
@@ -177,6 +178,7 @@ function turnTo(page, { silent = false } = {}) {
 
 // Runs for every new spread, however it was reached
 function spreadChanged({ silent }) {
+  if (zoom && !model.spreadPages(start, count).includes(zoom.page)) zoomOut({ silent: true });
   Deck.setHash(model.hashFromStart(start));
   refresh();
   if (!silent) Deck.send(state());
@@ -240,6 +242,142 @@ function refreshPresenter() {
 
   const numbers = visible.map((p) => p + 1);
   presenter.count.textContent = `${numbers.length === 1 ? 'Page' : 'Pages'} ${numbers.join('–')} of ${count}`;
+  markPresenterZoom();
+}
+
+// ---------------------------------------------------------------- zoom
+
+const zoomables = (root) => [...root.querySelectorAll('[data-zoom]')];
+const zoomState = () => (zoom ? { type: 'zoom', page: zoom.page, index: zoom.index } : { type: 'zoom', page: null });
+
+function setupZoom() {
+  els.viewport = deck.parentElement;
+  els.hole = document.createElement('div');
+  els.hole.className = 'zoom-hole';
+  els.viewport.append(els.hole);
+
+  // Pressing a zoomable section must not start a page turn
+  for (const target of zoomables(els.book)) {
+    target.addEventListener('mousedown', (e) => e.stopPropagation());
+    target.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+  }
+
+  // While zoomed, no press or pointer movement reaches StPageFlip
+  const blockWhileZoomed = (e) => { if (zoom) e.stopPropagation(); };
+  els.scene.addEventListener('mousedown', blockWhileZoomed, true);
+  els.scene.addEventListener('touchstart', blockWhileZoomed, { capture: true, passive: true });
+  addEventListener('mousemove', blockWhileZoomed, true);
+  addEventListener('touchmove', blockWhileZoomed, { capture: true, passive: true });
+
+  els.scene.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-zoom]');
+    if (target && els.book.contains(target)) {
+      const page = target.closest('.page');
+      const pageIndex = Number(page.dataset.index);
+      const index = zoomables(page).indexOf(target);
+      if (zoom?.page === pageIndex && zoom.index === index) return; // keeps video controls usable
+      zoomTo(pageIndex, index);
+    } else if (zoom) {
+      zoomOut();
+    }
+  });
+
+  addEventListener('resize', () => { if (zoom) applyZoom(); });
+}
+
+function setupPresenterZoom() {
+  presenter.currentView.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-zoom]');
+    if (target) {
+      const copy = target.closest('.preview-page');
+      zoomTo(Number(copy.dataset.index), zoomables(copy).indexOf(target));
+    } else if (zoom) {
+      zoomOut();
+    }
+  });
+}
+
+function zoomTo(page, index, { silent = false } = {}) {
+  if (!model.spreadPages(start, count).includes(page)) return;
+
+  if (pageFlip) {
+    const el = zoomables(pages[page])[index];
+    if (!el || isBusy()) return;
+    if (zoom) setMedia(zoomables(pages[zoom.page])[zoom.index], false);
+    zoom = { page, index };
+    els.viewport.classList.add('is-zoomed');
+    applyZoom();
+    setMedia(el, true);
+  } else {
+    zoom = { page, index };
+    markPresenterZoom();
+  }
+  if (!silent) Deck.send(zoomState());
+}
+
+function zoomOut({ silent = false } = {}) {
+  if (!zoom) return;
+  if (pageFlip) {
+    setMedia(zoomables(pages[zoom.page])[zoom.index], false);
+    els.viewport.classList.remove('is-zoomed');
+    els.scene.style.transform = '';
+  }
+  zoom = null;
+  if (presenter) markPresenterZoom();
+  if (!silent) Deck.send(zoomState());
+}
+
+function applyZoom() {
+  const el = zoomables(pages[zoom.page])[zoom.index];
+  const viewport = els.viewport.getBoundingClientRect();
+  const camera = new DOMMatrix(getComputedStyle(els.scene).transform);
+  const r = el.getBoundingClientRect();
+
+  // Undo the current camera to get the element's place in the unzoomed scene
+  const target = {
+    x: (r.left - viewport.left - camera.e) / camera.a,
+    y: (r.top - viewport.top - camera.f) / camera.a,
+    width: r.width / camera.a,
+    height: r.height / camera.a,
+  };
+  const t = model.zoomTransform(target, { width: viewport.width, height: viewport.height });
+  els.scene.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
+
+  const w = target.width * t.scale;
+  const h = target.height * t.scale;
+  Object.assign(els.hole.style, {
+    left: `${(viewport.width - w) / 2}px`,
+    top: `${(viewport.height - h) / 2}px`,
+    width: `${w}px`,
+    height: `${h}px`,
+  });
+}
+
+function setMedia(el, play) {
+  if (!el) return;
+  const videos = el.matches('video') ? [el] : [...el.querySelectorAll('video')];
+  for (const video of videos) {
+    if (play) video.play().catch(() => {});
+    else video.pause();
+  }
+}
+
+function markPresenterZoom() {
+  for (const el of presenter.currentView.querySelectorAll('.is-zoom-target')) {
+    el.classList.remove('is-zoom-target');
+  }
+  if (!zoom) return;
+  const copy = presenter.currentView.querySelector(`.preview-page[data-index="${zoom.page}"]`);
+  if (copy) zoomables(copy)[zoom.index]?.classList.add('is-zoom-target');
+}
+
+// Keys, stack edge and tabs: zoom out first instead of turning
+function navigate(target) {
+  if (zoom) {
+    zoomOut();
+    return;
+  }
+  turnTo(target);
 }
 
 // ---------------------------------------------------------------- mode
@@ -258,18 +396,21 @@ Deck.modes.book = {
     if (panes) {
       presenter = panes;
       buildPresenterPreviews();
+      setupPresenterZoom();
     } else {
       buildScene();
       createBook();
+      setupZoom();
     }
     ready = true;
     refresh();
   },
 
-  next: () => turnTo(model.nextSpread(queued?.target ?? start, count)),
-  prev: () => turnTo(model.prevSpread(queued?.target ?? start, count)),
-  first: () => turnTo(0),
-  last: () => turnTo(count - 1),
+  next: () => navigate(model.nextSpread(queued?.target ?? start, count)),
+  prev: () => navigate(model.prevSpread(queued?.target ?? start, count)),
+  first: () => navigate(0),
+  last: () => navigate(count - 1),
+  escape: () => zoomOut(),
 
   goToHash(n, { silent = false } = {}) {
     if (count === 0) return;
@@ -278,6 +419,7 @@ Deck.modes.book = {
       Deck.setHash(model.hashFromStart(start));
       return;
     }
+    zoomOut({ silent });
     if (!pageFlip) {
       start = target;
       spreadChanged({ silent });
@@ -290,7 +432,13 @@ Deck.modes.book = {
   state,
 
   receive(msg) {
-    if (msg.type === 'state') turnTo(msg.page, { silent: true });
+    if (msg.type === 'state') {
+      if (msg.page !== start) zoomOut({ silent: true });
+      turnTo(msg.page, { silent: true });
+    } else if (msg.type === 'zoom') {
+      if (msg.page === null) zoomOut({ silent: true });
+      else zoomTo(msg.page, msg.index, { silent: true });
+    }
   },
 };
 
@@ -299,6 +447,7 @@ Deck.book = {
   get start() { return start; },
   get count() { return count; },
   get idle() { return !isBusy() && queued === null; },
+  get zoom() { return zoom ? { page: zoom.page, index: zoom.index } : null; },
   get bounds() {
     const block = els.book?.querySelector('.stf__block')?.getBoundingClientRect();
     const rect = pageFlip?.getBoundsRect();
