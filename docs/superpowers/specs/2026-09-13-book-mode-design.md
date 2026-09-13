@@ -1,7 +1,7 @@
 # Book Mode — Design
 
 Date: 2026-09-13
-Status: Approved in conversation, pending written review
+Status: Approved
 
 ## Goal
 
@@ -85,9 +85,11 @@ Keys, clicker, URL hash, speaker notes, presenter view, live reload and
 
 ### Engine files
 
-The build inlines plain `<script src>` tags but does not bundle ES module imports,
-so the engine becomes classic scripts sharing a `window.Deck` namespace. All of them
-are always loaded; `core.js` starts the mode named in `data-mode`.
+The build inlines `<script src>` tags but does not bundle ES module imports, so the
+engine files contain no `import`/`export` and share a `window.Deck` namespace. They
+are loaded with `<script type="module">`, which keeps them deferred and in document
+order even when the build inlines them. All of them are always loaded; `core.js`
+starts the mode named in `data-mode`.
 
 ```
 assets/engine/core.js        loading, state, keys, hash, sync, presenter view (from deck.js)
@@ -259,7 +261,7 @@ A hand-dragged turn is sent when it completes (StPageFlip `flip` event).
 
 - **Logic (no dependencies):** `assets/engine/book-model.js` holds the pure functions —
   padding, stiffness, spread ↔ hash mapping, tab placement, zoom transform maths.
-  `npm test` runs `node --test` over `tests/*.test.mjs`, which load the script with
+  `npm test` runs `node --test` over `tests/unit/*.test.mjs`, which load the script with
   `node:vm`.
 - **Browser (dev dependency):** `@playwright/test` 1.63 with a smoke suite,
   `npm run test:e2e`, covering: opening the book, turning, hash reload, edge jump,
