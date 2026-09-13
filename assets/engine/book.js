@@ -88,7 +88,8 @@ function createBook() {
     maxHeight: 5656,
     showCover: true,
     usePortrait: false,
-    disableFlipByClick: false,
+    autoSize: false,
+    disableFlipByClick: true,
     mobileScrollSupport: false,
     flippingTime: FLIP_MS,
     maxShadowOpacity: 0.5,
@@ -137,6 +138,25 @@ function onState(flipState) {
 
 // ---------------------------------------------------------------- navigation
 
+// StPageFlip 2.0.7's flipNext/flipPrev start from a point that ignores the book's
+// offset inside its block, so its corner check rejects them while
+// disableFlipByClick is on. Start the turn from a real bottom corner instead,
+// preparing the spread index the way its own flipToPage does.
+function flipTo(target) {
+  const collection = pageFlip.getPageCollection();
+  const current = collection.getCurrentSpreadIndex();
+  const next = collection.getSpreadIndexByPage(target);
+  if (next === null || next === current) return;
+
+  const forward = next > current;
+  collection.setCurrentSpreadIndex(forward ? next - 1 : next + 1);
+  const rect = pageFlip.getBoundsRect();
+  pageFlip.getFlipController().flip({
+    x: rect.left + (forward ? rect.width - 10 : 10),
+    y: rect.top + rect.height - 2,
+  });
+}
+
 function turnTo(page, { silent = false } = {}) {
   const target = model.spreadStart(page, count);
 
@@ -152,7 +172,7 @@ function turnTo(page, { silent = false } = {}) {
   }
   if (target === start) return;
   if (silent) pendingRemote = target;
-  pageFlip.flip(target, 'bottom');
+  flipTo(target);
 }
 
 // Runs for every new spread, however it was reached

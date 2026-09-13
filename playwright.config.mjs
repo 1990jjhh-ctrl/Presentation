@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 30_000,
+  // Page-turn animations are timed; parallel browsers starve each other on slow machines
+  workers: 1,
   projects: [
     {
       name: 'chromium',

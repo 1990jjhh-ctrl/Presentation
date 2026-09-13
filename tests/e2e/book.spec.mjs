@@ -14,6 +14,12 @@ test('opens closed on the front cover, shifted to the centre', async ({ page }) 
   await openBook(page);
   await expect(page.locator('.book .page')).toHaveCount(8);
   await expect(page.locator('.book .page[data-density="hard"]')).toHaveCount(4);
+  const fits = await page.evaluate(() => {
+    const book = window.Deck.book.bounds;
+    const box = document.querySelector('.book-shift').getBoundingClientRect();
+    return book.height <= box.height + 1 && book.top >= box.top - 1;
+  });
+  expect(fits).toBe(true);
   expect(await page.evaluate(() => window.Deck.book.start)).toBe(0);
   await expect(page).toHaveURL(/#1$/);
   await expect.poll(() => shiftX(page)).toBeLessThan(-10);

@@ -30,14 +30,12 @@
 
 .book { width: 100%; height: 100%; }
 
-/* StPageFlip's own stylesheet misspells this class (".sft__wrapper"), so
-   its intended rule never applies; restate it verbatim here. It sets no
-   height: the library sizes this element itself via an inline
-   padding-bottom aspect-ratio box. */
+/* StPageFlip's own stylesheet misspells this class, and with autoSize off nothing
+   sizes it, so fill the book here */
 .book .stf__wrapper {
   position: relative;
   width: 100%;
-  box-sizing: border-box;
+  height: 100%;
 }
 
 /* ---------------------------------------------------------------- pages */
