@@ -6,11 +6,12 @@
   <title>Presentation Title</title>
   <link rel="stylesheet" href="assets/deck.css">
   <link rel="stylesheet" href="assets/theme.css">
-  <script type="module" src="assets/deck.js"></script>
+  <script type="module" src="assets/engine/core.js"></script>
+  <script type="module" src="assets/engine/slides.js"></script>
 </head>
 <body>
   <div class="viewport">
-    <main class="deck">
+    <main class="deck" data-mode="slides">
       <!-- One line per slide, in presentation order. Paths are relative to this file. -->
       <div data-slide="slides/title.html"></div>
       <div data-slide="slides/section.html"></div>
