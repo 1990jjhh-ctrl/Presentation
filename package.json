@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
+    "test": "node --test tests/unit/*.test.mjs",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
