@@ -21,9 +21,11 @@ let queued = null;        // turn requested while a page was still moving
 let ready = false;
 let zoom = null;          // { page, index } of the zoomed [data-zoom] element
 let queuedZoom = null;    // zoom requested while a page was still turning
+let bookState = 'read';   // StPageFlip fires changeState before getState() updates, so mirror it here
+let flipTarget = null;    // spread start of the turn currently in flight
 
 const state = () => ({ type: 'state', page: start });
-const isBusy = () => pageFlip !== null && BUSY_STATES.includes(pageFlip.getState());
+const isBusy = () => pageFlip !== null && BUSY_STATES.includes(bookState);
 
 // ---------------------------------------------------------------- pages
 
@@ -123,6 +125,7 @@ function onFlip(newStart) {
 }
 
 function onState(flipState) {
+  bookState = flipState;
   // Opening a closed book: slide to the open position while the cover turns
   if (flipState === 'flipping' && (start === 0 || start === count - 1)) {
     els.shift.style.transform = 'translateX(0px)';
@@ -131,6 +134,13 @@ function onState(flipState) {
 
   // At rest again (also after a drag that snapped back)
   applyLayout();
+  flipTarget = null;
+  // StPageFlip assigns its new state only after this handler returns, so calls
+  // back into the library wait until then
+  if (queued || queuedZoom) queueMicrotask(replayQueued);
+}
+
+function replayQueued() {
   if (queued) {
     const { target, silent } = queued;
     queued = null;
@@ -139,7 +149,7 @@ function onState(flipState) {
   if (queuedZoom) {
     const { page, index, silent } = queuedZoom;
     queuedZoom = null;
-    queueMicrotask(() => zoomTo(page, index, { silent }));
+    zoomTo(page, index, { silent });
   }
 }
 
@@ -179,6 +189,7 @@ function turnTo(page, { silent = false } = {}) {
   }
   if (target === start) return;
   if (silent) pendingRemote = target;
+  flipTarget = target;
   flipTo(target);
 }
 
@@ -422,8 +433,8 @@ Deck.modes.book = {
     refresh();
   },
 
-  next: () => navigate(model.nextSpread(queued?.target ?? start, count)),
-  prev: () => navigate(model.prevSpread(queued?.target ?? start, count)),
+  next: () => navigate(model.nextSpread(queued?.target ?? flipTarget ?? start, count)),
+  prev: () => navigate(model.prevSpread(queued?.target ?? flipTarget ?? start, count)),
   first: () => navigate(0),
   last: () => navigate(count - 1),
   escape: () => zoomOut(),

@@ -77,3 +77,12 @@ test('fewer than four pages shows an explanation', async ({ page }) => {
   await page.goto('/tests/fixtures/book-short.html');
   await expect(page.locator('.book-error')).toContainText('at least 4 pages');
 });
+
+test('a key pressed while a page is turning is applied after the turn', async ({ page }) => {
+  await openBook(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(page).toHaveURL(/#4$/);
+  await page.waitForFunction(() => window.Deck.book.idle);
+  expect(await page.evaluate(() => window.Deck.book.start)).toBe(3);
+});
