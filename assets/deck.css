@@ -1,0 +1,189 @@
+/* Deck engine styles — scaling, slide visibility, presenter view and print.
+   The look of the slides lives in theme.css. */
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+body.idle { cursor: none; }
+
+.viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Fixed 1920×1080 canvas, scaled to fit by deck.js */
+.deck {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.slide.active {
+  visibility: visible;
+  opacity: 1;
+}
+
+.fragment {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.fragment.visible { opacity: 1; }
+
+.slide .notes { display: none !important; }
+
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 6px;
+  background: var(--accent, #888);
+  transition: width 0.3s ease;
+  z-index: 1;
+}
+
+body.blackout > .viewport { opacity: 0; }
+
+.slide.slide-error {
+  justify-content: center;
+  gap: 32px;
+  padding: 120px;
+  background: #fff1f0;
+  color: #8a1c12;
+  font: 40px/1.4 system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------- presenter */
+
+.presenter {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  grid-template-rows: 3fr 2fr;
+  gap: 16px;
+  padding: 16px;
+  background: #141414;
+  color: #e8e8e8;
+  font: 16px/1.5 system-ui, sans-serif;
+}
+
+.p-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #1f1f1f;
+}
+
+.p-pane h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.p-pane .viewport {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  border-radius: 4px;
+  background: #000;
+}
+
+.p-next .slide,
+.p-next .fragment { transition: none; }
+
+.p-end {
+  display: none;
+  flex: 1;
+  margin: 0;
+  place-content: center;
+  color: #8a8a8a;
+}
+
+.p-next.is-end .viewport { display: none; }
+.p-next.is-end .p-end { display: grid; }
+
+.p-notes-body {
+  flex: 1;
+  overflow: auto;
+  font-size: 24px;
+  white-space: pre-line;
+}
+
+.p-info {
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.p-timer {
+  font-size: 72px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.p-count, .p-clock { font-size: 24px; color: #aaa; }
+.p-keys { margin-top: 16px; font-size: 13px; color: #777; }
+
+.presenter .progress { display: none; }
+
+body.blackout .p-current h3::after {
+  content: " — screen blacked out";
+  color: #e5675a;
+}
+
+/* ---------------------------------------------------------------- print / PDF */
+
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+
+  html, body {
+    height: auto;
+    overflow: visible;
+    background: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .viewport { width: auto; height: auto; overflow: visible; }
+  .deck { position: static; width: auto; height: auto; transform: none !important; }
+
+  .slide {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    visibility: visible;
+    opacity: 1;
+    transition: none;
+    break-after: page;
+  }
+
+  .fragment { opacity: 1; }
+  .progress { display: none; }
+}

@@ -1,0 +1,46 @@
+# Commit message rules — https://jorisroovers.com/gitlint/
+# Check the last commit:   gitlint
+# Enforce on every commit: gitlint install-hook
+
+[general]
+# A one-line message is fine for small changes
+ignore=body-is-missing
+# Merge, revert, fixup! and squash! commits are skipped (gitlint default)
+ignore-merge-commits=true
+ignore-revert-commits=true
+ignore-fixup-commits=true
+ignore-fixup-amend-commits=true
+ignore-squash-commits=true
+# Opt in to the future regex behaviour (all patterns below are anchored with ^)
+regex-style-search=true
+# Uncomment to require Conventional Commits titles ("feat: …", "fix(slides): …")
+# and remove the [title-match-regex] section below
+# contrib=contrib-title-conventional-commits
+
+# ---------------------------------------------------------------- title
+
+[title-max-length]
+line-length=72
+
+[title-min-length]
+min-length=5
+
+# Starts with a capital letter or digit, e.g. "Add quote slide"
+[title-match-regex]
+regex=^[A-ZÄÖÜ0-9]
+
+[title-must-not-contain-word]
+words=WIP,TODO,tmp
+
+# ---------------------------------------------------------------- body
+
+[body-max-line-length]
+line-length=100
+
+# Only applies when a body exists
+[body-min-length]
+min-length=20
+
+# Long URLs and trailers may exceed the line length
+[ignore-body-lines]
+regex=^(https?://\S+|(Co-Authored-By|Signed-off-by|Reviewed-by|Refs|Fixes|Closes|Claude-Session): .*)$
