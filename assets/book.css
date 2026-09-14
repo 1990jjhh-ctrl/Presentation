@@ -1,0 +1,380 @@
+/* Book mode — desk, paper, covers and page scaling.
+   Pages are written on a 1000×1414 canvas; book.js sets --page-scale. */
+
+:root {
+  --desk: #2a2420;
+  --desk-light: #3b332c;
+  --paper: #fbf8f1;
+  --paper-shade: rgb(60 40 20 / 0.14);
+  --cover: #6b3322;
+  --cover-dark: #3b1a11;
+  --cover-ink: #f3dfb8;
+  --endpaper: #d8c4a0;
+}
+
+/* ---------------------------------------------------------------- scene */
+
+.scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: radial-gradient(ellipse at 50% 40%, var(--desk-light), var(--desk) 75%);
+}
+
+/* Positioned and sized to exactly the open book by book.js (fitScene) */
+.book-shift {
+  position: absolute;
+}
+
+/* Only a page turn that opens or closes the book animates its offset */
+.book-shift.is-sliding {
+  transition: transform var(--flip-ms, 800ms) ease;
+}
+
+.book { width: 100%; height: 100%; }
+
+/* StPageFlip's own stylesheet misspells this class, and with autoSize off nothing
+   sizes it, so fill the book here */
+.book .stf__wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------------------------------------------------------- pages */
+
+:is(.book, .spread-preview) .page {
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.35);
+}
+
+/* Shade towards the spine */
+:is(.book, .spread-preview) .page.--left { background: linear-gradient(to left, var(--paper-shade), transparent 7%), var(--paper); }
+:is(.book, .spread-preview) .page.--right { background: linear-gradient(to right, var(--paper-shade), transparent 7%), var(--paper); }
+
+.page-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 1000px;
+  height: 1414px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 90px 80px;
+  transform: scale(var(--page-scale, 1));
+  transform-origin: 0 0;
+  color: var(--fg);
+  font: 400 30px/1.45 var(--font-body);
+}
+
+.page-canvas h1,
+.page-canvas h2,
+.page-canvas h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.page-canvas h1 { font-size: 72px; }
+.page-canvas h2 { font-size: 48px; }
+.page-canvas h3 { font-size: 34px; }
+.page-canvas p { margin: 0; text-wrap: pretty; }
+.page-canvas ul { margin: 0; padding-left: 1.2em; }
+.page-canvas li::marker { color: var(--accent); }
+
+.page-canvas figure {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.page-canvas figure img,
+.page-canvas figure video {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+}
+
+.page-canvas figcaption { font-size: 22px; color: var(--muted); }
+
+.page .notes { display: none !important; }
+
+/* Two stacked sections filling a page */
+.page-canvas .halves {
+  flex: 1;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 48px;
+  min-height: 0;
+}
+
+.page-canvas .halves > * { min-height: 0; }
+
+.page-canvas .halves img {
+  flex: 1;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.page-folio {
+  position: absolute;
+  bottom: 50px;
+  font-size: 22px;
+  color: var(--muted);
+}
+
+.page.--left .page-folio { left: 80px; }
+.page.--right .page-folio { right: 80px; }
+
+/* ---------------------------------------------------------------- covers */
+
+:is(.book, .spread-preview) .page.cover,
+:is(.book, .spread-preview) .page.back-cover {
+  background: linear-gradient(135deg, var(--cover), var(--cover-dark));
+}
+
+.page.cover .page-canvas,
+.page.back-cover .page-canvas {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: var(--cover-ink);
+}
+
+/* Double frame on the front cover, inside the canvas so it scales with the page */
+.page.cover .page-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 40px;
+  border: 6px double color-mix(in srgb, var(--cover-ink) 60%, transparent);
+  pointer-events: none;
+}
+
+.page.cover h1 { font-family: var(--font-serif); font-size: 96px; }
+.page.cover .subtitle { font-size: 36px; opacity: 0.8; }
+
+:is(.book, .spread-preview) .page.endpaper {
+  background:
+    radial-gradient(circle at 25% 25%, rgb(255 255 255 / 0.18) 2px, transparent 3px) 0 0 / 40px 40px,
+    var(--endpaper);
+}
+
+/* ---------------------------------------------------------------- errors */
+
+.book-error {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 24px;
+  padding: 60px;
+  background: #fff1f0;
+  color: #8a1c12;
+  font: 32px/1.4 system-ui, sans-serif;
+  text-align: center;
+}
+
+.page.page-error .page-canvas {
+  background: #fff1f0;
+  color: #8a1c12;
+  font-family: system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------- presenter previews */
+
+.spread-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2000px;
+  height: 1414px;
+  transform-origin: 0 0;
+}
+
+.spread-preview .page {
+  position: absolute;
+  top: 0;
+  width: 1000px;
+  height: 1414px;
+}
+
+.spread-preview .page.--left { left: 0; }
+.spread-preview .page.--right { left: 1000px; }
+
+.p-note + .p-note { margin-top: 20px; }
+
+.p-note strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+/* ---------------------------------------------------------------- zoom */
+
+.scene { transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+/* A transparent window over the zoomed section; its huge shadow dims the rest */
+.zoom-hole {
+  position: absolute;
+  z-index: 5;
+  border-radius: 8px;
+  box-shadow: 0 0 0 200vmax rgb(0 0 0 / 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.viewport.is-zoomed .zoom-hole { opacity: 1; }
+
+.book [data-zoom],
+.p-current .spread-preview [data-zoom] {
+  border-radius: 6px;
+  cursor: zoom-in;
+}
+
+.book [data-zoom]:hover,
+.p-current .spread-preview [data-zoom]:hover {
+  outline: 4px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 10px;
+}
+
+.viewport.is-zoomed .book [data-zoom]:hover,
+body.idle .book [data-zoom]:hover { outline: none; }
+
+body.idle .book [data-zoom] { cursor: none; }
+
+.spread-preview [data-zoom].is-zoom-target {
+  outline: 8px solid var(--accent);
+  outline-offset: 12px;
+}
+
+/* ---------------------------------------------------------------- stack edge and tabs */
+
+.stack {
+  position: absolute;
+  z-index: 2;
+  cursor: pointer;
+  background: repeating-linear-gradient(to right, #efe8da 0 1px, #d6ccb9 1px 2px);
+  box-shadow: inset 0 0 6px rgb(0 0 0 / 0.25);
+}
+
+.stack-left { border-radius: 3px 0 0 3px; }
+.stack-right { border-radius: 0 3px 3px 0; }
+
+/* The page under the pointer */
+.stack::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--slice-x, 0);
+  width: var(--slice-w, 0);
+  background: var(--accent);
+  opacity: 0;
+}
+
+.stack:hover::after { opacity: 0.8; }
+
+.stack-label {
+  position: absolute;
+  z-index: 6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgb(20 20 20 / 0.9);
+  color: #fff;
+  font: 14px/1.4 system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -140%);
+}
+
+.stack[hidden],
+.stack-label[hidden],
+.viewport.is-zoomed .stack-label { display: none; }
+
+.tab {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  overflow: hidden;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font: 600 max(11px, calc(20px * var(--page-scale, 1)))/1 var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  writing-mode: vertical-rl;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+/* Rotated, so the rounded corners and text face outwards on the left */
+.tab[data-side="left"] { transform: rotate(180deg); }
+
+.tab:hover { filter: brightness(1.1); }
+
+/* ---------------------------------------------------------------- print / PDF */
+
+@page book { size: A4 portrait; margin: 0; }
+
+@media print {
+  .deck[data-mode="book"] { display: none; }
+
+  .scene,
+  .book-shift,
+  .book,
+  .book .stf__wrapper,
+  .book .stf__block {
+    position: static;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: visible;
+    background: none;
+    transform: none !important;
+  }
+
+  /* StPageFlip positions pages with inline styles; override them to print in order */
+  .book .page {
+    page: book;
+    position: relative !important;
+    display: block !important;
+    top: auto !important;
+    left: auto !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    transform: none !important;
+    clip-path: none !important;
+    box-shadow: none !important;
+  }
+
+  .book .page:not([data-index="0"]) { break-before: page; }
+
+  /* 210 mm is 793.7 px at 96 dpi */
+  .book .page .page-canvas { transform: scale(0.7937); }
+
+  .stf__outerShadow,
+  .stf__innerShadow,
+  .stf__hardShadow,
+  .stf__hardInnerShadow,
+  .stack,
+  .stack-label,
+  .tabs,
+  .zoom-hole { display: none !important; }
+
+  .book [data-zoom] { outline: none !important; }
+}

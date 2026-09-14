@@ -31,3 +31,16 @@ export const MIME = {
 
 // Types the build embeds as data: URIs
 export const isMedia = (type) => /^(image|font|video|audio)\//.test(type ?? '');
+
+// Build warning when embedded media make the single-file build heavy
+export function mediaWarning(sizes, limitBytes = 25 * 1024 * 1024) {
+  const total = sizes.reduce((sum, { bytes }) => sum + bytes, 0);
+  if (total <= limitBytes) return null;
+
+  const mb = (bytes) => (bytes / 1024 / 1024).toFixed(1);
+  const largest = [...sizes]
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, 5)
+    .map(({ file, bytes }) => `${mb(bytes).padStart(6)} MB  ${file}`);
+  return [`Warning: embedded media totals ${mb(total)} MB (limit ${mb(limitBytes)} MB). Largest files:`, ...largest].join('\n');
+}

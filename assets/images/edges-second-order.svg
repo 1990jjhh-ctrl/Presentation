@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560">
+  <rect width="900" height="560" fill="#111"/>
+  <path d="M250 470V270L450 120L650 270V470Z M400 470V360H500V470" fill="none" stroke="#fff" stroke-width="22" stroke-linejoin="round"/>
+  <path d="M250 470V270L450 120L650 270V470Z M400 470V360H500V470" fill="none" stroke="#111" stroke-width="10" stroke-linejoin="round"/>
+</svg>

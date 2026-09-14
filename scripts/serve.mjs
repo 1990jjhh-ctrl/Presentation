@@ -46,7 +46,8 @@ const server = createServer(async (req, res) => {
 
 let reloadTimer;
 watch(root, { recursive: true }, (_event, filename) => {
-  if (!filename || /^(dist|node_modules|\.git)([\\/]|$)/.test(filename)) return;
+  // Build output, test runs and local tooling write inside the project; don't reload for those
+  if (!filename || /^(dist|node_modules|\.git|test-results|playwright-report|\.superpowers)([\\/]|$)/.test(filename)) return;
   clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     for (const client of clients) client.write('data: reload\n\n');

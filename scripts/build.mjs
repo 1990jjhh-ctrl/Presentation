@@ -4,7 +4,10 @@
 
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
-import { MIME, isMedia, root } from './shared.mjs';
+import { MIME, isMedia, mediaWarning, root } from './shared.mjs';
+
+// Bytes embedded per media file, for the size warning
+const embedded = new Map();
 
 const isRelative = (ref) => !/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(ref);
 
@@ -19,7 +22,10 @@ function inlineMedia(text, baseDir) {
     const file = resolve(baseDir, decodeURI(ref.split(/[?#]/)[0]));
     const type = MIME[extname(file).toLowerCase()];
     if (!isMedia(type) || !existsSync(file) || !statSync(file).isFile()) return null;
-    return `data:${type};base64,${readFileSync(file).toString('base64')}`;
+    const data = readFileSync(file);
+    const name = relative(root, file);
+    embedded.set(name, (embedded.get(name) ?? 0) + data.length);
+    return `data:${type};base64,${data.toString('base64')}`;
   };
 
   return text
@@ -35,17 +41,17 @@ function inlineMedia(text, baseDir) {
 
 let html = read(join(root, 'presentation.html'));
 
-// Drop comments so commented-out slides stay out of the build
+// Drop comments so commented-out slides and pages stay out of the build
 html = html.replace(/<!--[\s\S]*?-->/g, '');
 
-// Slides
-let slideCount = 0;
-html = html.replace(/<(\w+)\b[^>]*\bdata-slide=(["'])(.*?)\2[^>]*>\s*<\/\1>/g, (_match, _tag, _quote, src) => {
-  slideCount++;
+// Slides and pages
+const counts = { slide: 0, page: 0 };
+html = html.replace(/<(\w+)\b[^>]*\bdata-(slide|page)=(["'])(.*?)\3[^>]*>\s*<\/\1>/g, (_match, _tag, kind, _quote, src) => {
+  counts[kind]++;
   return read(resolve(root, src)).trim();
 });
 
-// Media referenced from the page and slides
+// Media referenced from the page, slides and book pages
 html = inlineMedia(html, root);
 
 // Stylesheets, with their own url() references resolved relative to the CSS file
@@ -68,4 +74,11 @@ const out = join(root, 'dist', `${basename(root)}.html`);
 writeFileSync(out, html);
 
 const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
-console.log(`Built ${relative(root, out)} — ${slideCount} slides, ${kb} KB`);
+const parts = [
+  counts.slide && `${counts.slide} slides`,
+  counts.page && `${counts.page} pages`,
+].filter(Boolean).join(', ') || 'no slides or pages';
+console.log(`Built ${relative(root, out)} — ${parts}, ${kb} KB`);
+
+const warning = mediaWarning([...embedded].map(([file, bytes]) => ({ file, bytes })));
+if (warning) console.warn(warning);
