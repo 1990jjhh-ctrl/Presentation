@@ -6,15 +6,39 @@ async function openBook(page, hash) {
 }
 
 test('the page stack shows hidden pages on the correct sides', async ({ page }) => {
-  await openBook(page, '#1');
-  await expect(page.locator('.stack-left')).toBeHidden();
+  await openBook(page, '#2'); // spread [1, 2]: only the inside front cover lies to the left
+  await expect(page.locator('.stack-left')).toBeVisible();
   await expect(page.locator('.stack-right')).toBeVisible();
 
-  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   await expect(page).toHaveURL(/#4$/);
   await expect(page.locator('.stack-left')).toBeVisible();
   await expect(page.locator('.stack-right')).toBeVisible();
+});
+
+test('a closed book hides its pages under the covers', async ({ page }) => {
+  await openBook(page, '#1');
+  await expect(page.locator('.stack-left')).toBeHidden();
+  await expect(page.locator('.stack-right')).toBeHidden();
+  await expect(page.locator('.tab')).toHaveCount(2);
+  await expect(page.locator('.tab').first()).toBeHidden();
+
+  // The pages under the lifting cover appear at once; the side it lands on waits
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => !window.Deck.book.idle);
+  await expect(page.locator('.stack-left')).toBeHidden();
+  await expect(page.locator('.tab').nth(0)).toBeHidden(); // 'Edge detection' ends up on the left
+  await expect(page.locator('.stack-right')).toBeVisible();
+  await expect(page.locator('.tab').nth(1)).toBeVisible();
+
+  await page.waitForFunction(() => window.Deck.book.idle);
+  await expect(page.locator('.stack-left')).toBeVisible();
+  await expect(page.locator('.tab').nth(0)).toBeVisible();
+  await page.keyboard.press('End');
+  await page.waitForFunction(() => window.Deck.book.idle && window.Deck.book.start === 7);
+  await expect(page.locator('.stack-left')).toBeHidden();
+  await expect(page.locator('.stack-right')).toBeHidden();
+  await expect(page.locator('.tab').first()).toBeHidden();
 });
 
 test('hovering the stack edge names a page and clicking turns to it', async ({ page }) => {
@@ -33,11 +57,12 @@ test('hovering the stack edge names a page and clicking turns to it', async ({ p
 });
 
 test('chapter tabs sit on the right while ahead, move left once passed, and jump', async ({ page }) => {
-  await openBook(page, '#1');
+  await openBook(page, '#2');
   const tabs = page.locator('.tab');
   await expect(tabs).toHaveCount(2);
   await expect(tabs.nth(0)).toHaveText('Edge detection');
-  await expect(tabs.nth(0)).toHaveAttribute('data-side', 'right');
+  await expect(tabs.nth(0)).toHaveAttribute('data-side', 'left'); // its page is visible
+  await expect(tabs.nth(1)).toHaveAttribute('data-side', 'right');
 
   await tabs.nth(1).click();
   await expect(page).toHaveURL(/#6$/);

@@ -178,6 +178,13 @@ function onState(flipState) {
       const { pageWidth } = pageFlip.getBoundsRect();
       setOffset(closing ? model.closedOffset(flipTarget, count, pageWidth) : 0, true);
     }
+    // Pages show as soon as the cover lifts off them; the side the cover lands on stays
+    // hidden until it is down (at rest), and a closing book hides them once it lands.
+    // A hand-dragged turn has no flipTarget; opening one always reaches the next spread.
+    if (opening) {
+      const next = start === 0 ? model.nextSpread(start, count) : model.prevSpread(start, count);
+      layoutNavigation(flipTarget ?? next, start === 0 ? 'left' : 'right');
+    }
   }
   if (BUSY_STATES.includes(flipState)) return;
 
@@ -528,14 +535,20 @@ function showStackLabel(side, e) {
 }
 
 // Positions the stacks and tabs around the visible pages (book-box coordinates)
-function layoutNavigation() {
+// `covered` hides one side's pages and tabs while an opening cover is still coming down on it
+function layoutNavigation(at = start, covered = null) {
   if (!els.stacks) return;
   const rect = pageFlip.getBoundsRect();
   const scale = rect.pageWidth / model.PAGE_WIDTH;
-  const { left, right } = model.stackCounts(start, count);
+  const { left, right } = model.stackCounts(at, count);
 
-  const visibleLeft = rect.left + (start === 0 ? rect.pageWidth : 0);
-  const visibleRight = rect.left + (start === count - 1 ? rect.pageWidth : rect.width);
+  // A closed book shows only its cover: the pages and their tabs lie underneath
+  const closed = at === 0 || at === count - 1;
+  els.tabs.hidden = closed;
+  if (closed) els.stackLabel.hidden = true;
+
+  const visibleLeft = rect.left + (at === 0 ? rect.pageWidth : 0);
+  const visibleRight = rect.left + (at === count - 1 ? rect.pageWidth : rect.width);
   const leftWidth = STACK_MAX * scale * (left / count);
   const rightWidth = STACK_MAX * scale * (right / count);
 
@@ -544,16 +557,17 @@ function layoutNavigation() {
   });
   place(els.stacks.left, visibleLeft - leftWidth, rect.top, leftWidth, rect.height);
   place(els.stacks.right, visibleRight, rect.top, rightWidth, rect.height);
-  els.stacks.left.hidden = left === 0;
-  els.stacks.right.hidden = right === 0;
+  els.stacks.left.hidden = closed || left === 0 || covered === 'left';
+  els.stacks.right.hidden = closed || right === 0 || covered === 'right';
 
   const tabWidth = TAB_WIDTH * scale;
   for (const tab of model.tabLayout(chapters, rect.height, scale)) {
     const el = els.tabs.querySelector(`.tab[data-page="${tab.page}"]`);
-    const side = model.tabSide(tab.page, start, count);
+    const side = model.tabSide(tab.page, at, count);
     const x = side === 'right' ? visibleRight + rightWidth : visibleLeft - leftWidth - tabWidth;
     place(el, x, rect.top + tab.top, tabWidth, tab.height);
     el.dataset.side = side;
+    el.hidden = side === covered;
   }
 }
 

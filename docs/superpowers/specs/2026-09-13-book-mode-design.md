@@ -223,12 +223,13 @@ A hand-dragged turn is sent when it completes (StPageFlip `flip` event).
 ### Page-stack edge
 
 - Beside the open book the page stack is drawn with a thickness proportional to the
-  number of pages on each side; a closed front cover shows it on the right only, a
-  closed back cover on the left only.
+  number of pages on each side. A closed book shows only its cover: the stack and
+  the chapter tabs lie underneath it, appear as soon as the cover starts to lift,
+  and disappear once a closing cover has landed.
 - Hovering the edge highlights one page slice and shows a label: page number and
   title.
 - Clicking turns to that page's spread with one animated turn
-  (through the adapter's `flipTo`, which starts StPageFlip's turn from a real corner); from a closed book it also slides the book open.
+  (through the adapter's `flipTo`, which starts StPageFlip's turn from a real corner).
 - Disabled while zoomed.
 
 ### Chapter tabs
