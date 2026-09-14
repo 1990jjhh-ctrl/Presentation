@@ -121,3 +121,22 @@ test('notesLabels names the visible pages', () => {
   assert.deepEqual(plain(model.notesLabels(3, 8)), ['Left', 'Right']);
   assert.deepEqual(plain(model.notesLabels(7, 8)), ['Cover']);
 });
+
+test('fitBook centres the largest open book inside the margins', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`);
+
+  // Wide scene: the height limits the book
+  const wide = plain(model.fitBook({ width: 1280, height: 720 }));
+  const widePage = (720 * 0.9 * 1000) / 1414;
+  close(wide.height, 648);
+  close(wide.width, 2 * widePage);
+  close(wide.left, (1280 - 2 * widePage) / 2);
+  close(wide.top, 36);
+
+  // Tall scene: the width limits the book
+  const tall = plain(model.fitBook({ width: 800, height: 1000 }));
+  close(tall.width, 736);
+  close(tall.left, 32);
+  close(tall.height, (368 * 1414) / 1000);
+  close(tall.top, (1000 - (368 * 1414) / 1000) / 2);
+});

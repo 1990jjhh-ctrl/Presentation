@@ -86,3 +86,39 @@ test('a key pressed while a page is turning is applied after the turn', async ({
   await page.waitForFunction(() => window.Deck.book.idle);
   expect(await page.evaluate(() => window.Deck.book.start)).toBe(3);
 });
+
+test('StPageFlip draws into a box exactly the size of the book, also after a resize', async ({ page }) => {
+  const mismatch = () => page.evaluate(() => {
+    const shift = document.querySelector('.book-shift').getBoundingClientRect();
+    const b = window.Deck.book.bounds;
+    return Math.max(
+      Math.abs(b.left - shift.left),
+      Math.abs(b.top - shift.top),
+      Math.abs(b.width - shift.width),
+      Math.abs(b.height - shift.height),
+    );
+  });
+
+  await openBook(page, `${BOOK}#2`);
+  expect(await mismatch()).toBeLessThan(1);
+
+  await page.setViewportSize({ width: 800, height: 1000 });
+  await expect.poll(mismatch).toBeLessThan(1);
+});
+
+test('a turning cover stays attached to the spine', async ({ page }) => {
+  await openBook(page);
+  await expect.poll(() => shiftX(page)).toBeLessThan(-10);
+
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() =>
+    getComputedStyle(document.querySelector('.book .page[data-index="1"]')).display !== 'none');
+  await page.waitForTimeout(300);
+
+  const gap = await page.evaluate(() => {
+    const b = window.Deck.book.bounds;
+    const inside = document.querySelector('.book .page[data-index="1"]').getBoundingClientRect();
+    return Math.abs(inside.right - (b.left + b.pageWidth));
+  });
+  expect(gap).toBeLessThan(3);
+});

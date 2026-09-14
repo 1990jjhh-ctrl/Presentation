@@ -22,9 +22,9 @@
   background: radial-gradient(ellipse at 50% 40%, var(--desk-light), var(--desk) 75%);
 }
 
+/* Positioned and sized to exactly the open book by book.js (fitScene) */
 .book-shift {
   position: absolute;
-  inset: 5vh 4vw;
   transition: transform var(--flip-ms, 800ms) ease;
 }
 

@@ -85,7 +85,20 @@ function buildScene() {
   els.book = els.scene.querySelector('.book');
 }
 
+// StPageFlip draws turning stiff pages as if the book filled its container, so the
+// container is sized to exactly the open book
+function fitScene() {
+  const box = model.fitBook({ width: els.scene.clientWidth, height: els.scene.clientHeight });
+  Object.assign(els.shift.style, {
+    left: `${box.left}px`,
+    top: `${box.top}px`,
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+  });
+}
+
 function createBook() {
+  fitScene();
   pageFlip = new window.St.PageFlip(els.book, {
     width: model.PAGE_WIDTH,
     height: model.PAGE_HEIGHT,
@@ -107,8 +120,13 @@ function createBook() {
   pageFlip.on('changeState', (e) => onState(e.data));
   pageFlip.loadFromHTML(pages);
 
-  // Registered after StPageFlip's own resize listener, so its bounds are current
-  addEventListener('resize', applyLayout);
+  // StPageFlip's own resize listener runs first but sees the old container size,
+  // so refit, let it recompute its bounds, then lay out
+  addEventListener('resize', () => {
+    fitScene();
+    pageFlip.getRender().update();
+    applyLayout();
+  });
   applyLayout();
 }
 

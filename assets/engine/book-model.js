@@ -9,6 +9,8 @@ const PAGE_HEIGHT = 1414;
 const MIN_PAGES = 4;
 const ZOOM_FILL = 0.85;
 const TAB_MAX_HEIGHT = 120;
+const BOOK_MARGIN_X = 0.04; // of the scene width, on each side
+const BOOK_MARGIN_Y = 0.05; // of the scene height, at top and bottom
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
@@ -79,6 +81,22 @@ const zoomTransform = (target, viewport) => {
 const notesLabels = (start, count) =>
   spreadPages(start, count).length === 1 ? ['Cover'] : ['Left', 'Right'];
 
+// Largest open (two-page) book that fits the scene inside its margins, centred.
+// StPageFlip needs a container of exactly this size: it draws turning stiff pages
+// as if the book filled its container.
+const fitBook = (scene) => {
+  const width = scene.width * (1 - 2 * BOOK_MARGIN_X);
+  const height = scene.height * (1 - 2 * BOOK_MARGIN_Y);
+  const pageWidth = Math.min(width / 2, (height * PAGE_WIDTH) / PAGE_HEIGHT);
+  const pageHeight = (pageWidth * PAGE_HEIGHT) / PAGE_WIDTH;
+  return {
+    left: (scene.width - 2 * pageWidth) / 2,
+    top: (scene.height - pageHeight) / 2,
+    width: 2 * pageWidth,
+    height: pageHeight,
+  };
+};
+
 Deck.bookModel = {
   PAGE_WIDTH,
   PAGE_HEIGHT,
@@ -98,4 +116,5 @@ Deck.bookModel = {
   tabLayout,
   zoomTransform,
   notesLabels,
+  fitBook,
 };
