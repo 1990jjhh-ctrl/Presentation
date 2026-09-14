@@ -8,6 +8,8 @@ Deck.modes ??= {};
 const model = Deck.bookModel;
 const FLIP_MS = 800;
 const BUSY_STATES = ['flipping', 'user_fold'];
+const STACK_MAX = 40;     // stack thickness in page-canvas px when every page is on one side
+const TAB_WIDTH = 44;     // chapter tab width in page-canvas px
 
 let deck = null;
 let pages = [];
@@ -20,6 +22,7 @@ let pendingRemote = null; // spread requested by the other window; not echoed ba
 let queued = null;        // turn requested while a page was still moving
 let ready = false;
 let zoom = null;          // { page, index } of the zoomed [data-zoom] element
+let chapters = [];        // { page, title } for pages with data-chapter
 let queuedZoom = null;    // zoom requested while a page was still turning
 let bookState = 'read';   // StPageFlip fires changeState before getState() updates, so mirror it here
 let flipTarget = null;    // spread start of the turn currently in flight
@@ -50,6 +53,7 @@ function preparePages() {
     page.dataset.index = String(i);
     page.dataset.density = model.isStiff(i, count) ? 'hard' : 'soft';
   });
+  chapters = pages.flatMap((page, i) => (page.dataset.chapter ? [{ page: i, title: page.dataset.chapter }] : []));
   return true;
 }
 
@@ -113,6 +117,7 @@ function applyLayout() {
   const { pageWidth } = pageFlip.getBoundsRect();
   els.shift.style.setProperty('--page-scale', pageWidth / model.PAGE_WIDTH);
   els.shift.style.transform = `translateX(${model.closedOffset(start, count, pageWidth)}px)`;
+  layoutNavigation();
 }
 
 function onFlip(newStart) {
@@ -407,6 +412,106 @@ function navigate(target) {
   turnTo(target);
 }
 
+// ---------------------------------------------------------------- stack edge and tabs
+
+function setupNavigation() {
+  els.shift.insertAdjacentHTML('beforeend', `
+    <div class="stack stack-left" hidden></div>
+    <div class="stack stack-right" hidden></div>
+    <div class="stack-label" hidden></div>
+    <div class="tabs"></div>`);
+  els.stacks = {
+    left: els.shift.querySelector('.stack-left'),
+    right: els.shift.querySelector('.stack-right'),
+  };
+  els.stackLabel = els.shift.querySelector('.stack-label');
+  els.tabs = els.shift.querySelector('.tabs');
+
+  for (const side of ['left', 'right']) {
+    const stack = els.stacks[side];
+    stack.addEventListener('mousemove', (e) => showStackLabel(side, e));
+    stack.addEventListener('mouseleave', () => { els.stackLabel.hidden = true; });
+    stack.addEventListener('click', (e) => {
+      if (zoom) return; // the scene's click handler zooms out
+      const page = stackPageAt(side, e);
+      if (page !== null) navigate(page);
+    });
+  }
+
+  for (const chapter of chapters) {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.tabIndex = -1;
+    tab.className = 'tab';
+    tab.dataset.page = String(chapter.page);
+    tab.title = chapter.title;
+    tab.textContent = chapter.title;
+    tab.addEventListener('click', () => {
+      if (!zoom) navigate(chapter.page);
+    });
+    els.tabs.append(tab);
+  }
+
+  layoutNavigation();
+}
+
+function stackPageAt(side, e) {
+  const box = els.stacks[side].getBoundingClientRect();
+  const fromSpine = side === 'left' ? box.right - e.clientX : e.clientX - box.left;
+  return model.pageAtStackDepth(side, fromSpine / box.width, start, count);
+}
+
+function showStackLabel(side, e) {
+  const page = stackPageAt(side, e);
+  if (page === null) return;
+
+  const stack = els.stacks[side];
+  const box = stack.getBoundingClientRect();
+  const visible = model.spreadPages(start, count);
+  const inStack = model.stackCounts(start, count)[side];
+  const sliceWidth = box.width / inStack;
+  const depth = side === 'left' ? start - 1 - page : page - visible[visible.length - 1] - 1;
+  const sliceX = side === 'left' ? box.width - (depth + 1) * sliceWidth : depth * sliceWidth;
+  stack.style.setProperty('--slice-x', `${sliceX}px`);
+  stack.style.setProperty('--slice-w', `${Math.max(2, sliceWidth)}px`);
+
+  const shiftBox = els.shift.getBoundingClientRect();
+  els.stackLabel.textContent = `${page + 1} · ${pageTitle(pages[page], page)}`;
+  els.stackLabel.style.left = `${e.clientX - shiftBox.left}px`;
+  els.stackLabel.style.top = `${e.clientY - shiftBox.top}px`;
+  els.stackLabel.hidden = false;
+}
+
+// Positions the stacks and tabs around the visible pages (book-box coordinates)
+function layoutNavigation() {
+  if (!els.stacks) return;
+  const rect = pageFlip.getBoundsRect();
+  const scale = rect.pageWidth / model.PAGE_WIDTH;
+  const { left, right } = model.stackCounts(start, count);
+
+  const visibleLeft = rect.left + (start === 0 ? rect.pageWidth : 0);
+  const visibleRight = rect.left + (start === count - 1 ? rect.pageWidth : rect.width);
+  const leftWidth = STACK_MAX * scale * (left / count);
+  const rightWidth = STACK_MAX * scale * (right / count);
+
+  const place = (el, x, y, width, height) => Object.assign(el.style, {
+    left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`,
+  });
+  place(els.stacks.left, visibleLeft - leftWidth, rect.top, leftWidth, rect.height);
+  place(els.stacks.right, visibleRight, rect.top, rightWidth, rect.height);
+  els.stacks.left.hidden = left === 0;
+  els.stacks.right.hidden = right === 0;
+
+  const tabWidth = TAB_WIDTH * scale;
+  for (const tab of model.tabLayout(chapters, rect.height, scale)) {
+    const el = els.tabs.querySelector(`.tab[data-page="${tab.page}"]`);
+    const side = model.tabSide(tab.page, start, count);
+    const x = side === 'right' ? visibleRight + rightWidth : visibleLeft - leftWidth - tabWidth;
+    place(el, x, rect.top + tab.top, tabWidth, tab.height);
+    el.dataset.side = side;
+  }
+}
+
 // ---------------------------------------------------------------- mode
 
 Deck.modes.book = {
@@ -428,6 +533,7 @@ Deck.modes.book = {
       buildScene();
       createBook();
       setupZoom();
+      setupNavigation();
     }
     ready = true;
     refresh();

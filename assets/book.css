@@ -251,3 +251,71 @@ body.idle .book [data-zoom] { cursor: none; }
   outline: 8px solid var(--accent);
   outline-offset: 12px;
 }
+
+/* ---------------------------------------------------------------- stack edge and tabs */
+
+.stack {
+  position: absolute;
+  z-index: 2;
+  cursor: pointer;
+  background: repeating-linear-gradient(to right, #efe8da 0 1px, #d6ccb9 1px 2px);
+  box-shadow: inset 0 0 6px rgb(0 0 0 / 0.25);
+}
+
+.stack-left { border-radius: 3px 0 0 3px; }
+.stack-right { border-radius: 0 3px 3px 0; }
+
+/* The page under the pointer */
+.stack::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--slice-x, 0);
+  width: var(--slice-w, 0);
+  background: var(--accent);
+  opacity: 0;
+}
+
+.stack:hover::after { opacity: 0.8; }
+
+.stack-label {
+  position: absolute;
+  z-index: 6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgb(20 20 20 / 0.9);
+  color: #fff;
+  font: 14px/1.4 system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -140%);
+}
+
+.stack[hidden],
+.stack-label[hidden],
+.viewport.is-zoomed .stack-label { display: none; }
+
+.tab {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  overflow: hidden;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font: 600 max(11px, calc(20px * var(--page-scale, 1)))/1 var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  writing-mode: vertical-rl;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+/* Rotated, so the rounded corners and text face outwards on the left */
+.tab[data-side="left"] { transform: rotate(180deg); }
+
+.tab:hover { filter: brightness(1.1); }
