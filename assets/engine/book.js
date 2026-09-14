@@ -178,9 +178,13 @@ function onState(flipState) {
       const { pageWidth } = pageFlip.getBoundsRect();
       setOffset(closing ? model.closedOffset(flipTarget, count, pageWidth) : 0, true);
     }
-    // A closing book drops its chapter tabs before the cover comes down; the page
-    // stack disappears once the cover has landed (at rest)
-    if (closing) els.tabs.hidden = true;
+    // A closing book drops its chapter tabs before the cover comes down, and the stack
+    // on the side the cover lifts off (only that side's board) goes with it; the other
+    // stack disappears under the cover once it has landed (at rest)
+    if (closing) {
+      layoutNavigation(start, flipTarget === 0 ? 'left' : 'right');
+      els.tabs.hidden = true;
+    }
     // Pages show as soon as the cover lifts off them; the side the cover lands on stays
     // hidden until it is down (at rest)
     // A hand-dragged turn has no flipTarget; opening one always reaches the next spread.
@@ -538,7 +542,7 @@ function showStackLabel(side, e) {
 }
 
 // Positions the stacks and tabs around the visible pages (book-box coordinates)
-// `covered` hides one side's pages and tabs while an opening cover is still coming down on it
+// `covered` hides one side's stack and tabs while a turning cover passes over that side
 function layoutNavigation(at = start, covered = null) {
   if (!els.stacks) return;
   const rect = pageFlip.getBoundsRect();
