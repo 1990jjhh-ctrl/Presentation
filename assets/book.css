@@ -319,3 +319,56 @@ body.idle .book [data-zoom] { cursor: none; }
 .tab[data-side="left"] { transform: rotate(180deg); }
 
 .tab:hover { filter: brightness(1.1); }
+
+/* ---------------------------------------------------------------- print / PDF */
+
+@page book { size: A4 portrait; margin: 0; }
+
+@media print {
+  .deck[data-mode="book"] { display: none; }
+
+  .scene,
+  .book-shift,
+  .book,
+  .book .stf__wrapper,
+  .book .stf__block {
+    position: static;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: visible;
+    background: none;
+    transform: none !important;
+  }
+
+  /* StPageFlip positions pages with inline styles; override them to print in order */
+  .book .page {
+    page: book;
+    position: relative !important;
+    display: block !important;
+    top: auto !important;
+    left: auto !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    transform: none !important;
+    clip-path: none !important;
+    box-shadow: none !important;
+  }
+
+  .book .page:not([data-index="0"]) { break-before: page; }
+
+  /* 210 mm is 793.7 px at 96 dpi */
+  .book .page .page-canvas { transform: scale(0.7937); }
+
+  .stf__outerShadow,
+  .stf__innerShadow,
+  .stf__hardShadow,
+  .stf__hardInnerShadow,
+  .stack,
+  .stack-label,
+  .tabs,
+  .zoom-hole { display: none !important; }
+
+  .book [data-zoom] { outline: none !important; }
+}
