@@ -42,3 +42,16 @@ test('presenter and audience windows follow each other', async ({ page, context 
   await page.keyboard.press('ArrowRight');
   await expect(presenter.locator('.p-count')).toHaveText('Pages 4–5 of 8');
 });
+
+test('the presenter window keeps the original pages hidden', async ({ page }) => {
+  await page.goto('/presentation.html?presenter#4');
+  await expect(page.locator('.p-count')).toHaveText('Pages 4–5 of 8');
+  await expect(page.locator('main.deck')).toBeHidden();
+});
+
+test('only the Current preview offers zoom', async ({ page }) => {
+  await page.goto('/presentation.html?presenter#2');
+  await expect(page.locator('.p-count')).toHaveText('Pages 2–3 of 8');
+  const next = page.locator('.p-next .preview-page[data-index="3"] [data-zoom]').first();
+  expect(await next.evaluate((el) => getComputedStyle(el).cursor)).not.toBe('zoom-in');
+});

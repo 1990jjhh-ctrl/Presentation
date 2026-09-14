@@ -101,7 +101,7 @@ function buildPresenterShell() {
       <div class="p-count"></div>
       <div class="p-timer" title="Click to reset">00:00</div>
       <div class="p-clock"></div>
-      <p class="p-keys">→ / Space next · ← previous · B black screen · F fullscreen</p>
+      <p class="p-keys">→ / Space next · ← previous · Esc zoom out · B black screen · F fullscreen</p>
     </section>`;
   document.body.append(ui);
 

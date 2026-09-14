@@ -122,3 +122,34 @@ test('a turning cover stays attached to the spine', async ({ page }) => {
   });
   expect(gap).toBeLessThan(3);
 });
+
+test('a closed book is already centred on load and after a resize, without sliding', async ({ page }) => {
+  await openBook(page);
+  const expected = () => page.evaluate(() => -window.Deck.book.bounds.pageWidth / 2);
+  expect(Math.abs((await shiftX(page)) - (await expected()))).toBeLessThan(1);
+
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.waitForTimeout(100);
+  expect(Math.abs((await shiftX(page)) - (await expected()))).toBeLessThan(1);
+});
+
+test('closing the book slides it to the centre while the cover turns', async ({ page }) => {
+  await openBook(page, `${BOOK}#6`);
+  await page.waitForFunction(() => window.Deck.book.idle);
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.Deck.book.idle)).toBe(false);
+  expect(await shiftX(page)).toBeGreaterThan(10);
+  await page.waitForFunction(() => window.Deck.book.idle);
+  await expect(page).toHaveURL(/#8$/);
+});
+
+test('a hash change while a page is turning lands on that spread', async ({ page }) => {
+  await openBook(page, `${BOOK}#2`);
+  await page.waitForFunction(() => window.Deck.book.idle);
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => !window.Deck.book.idle);
+  await page.evaluate(() => { location.hash = '#6'; });
+  await page.waitForFunction(() => window.Deck.book.idle && window.Deck.book.start === 5);
+  await expect(page).toHaveURL(/#6$/);
+});

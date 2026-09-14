@@ -228,7 +228,7 @@ A hand-dragged turn is sent when it completes (StPageFlip `flip` event).
 - Hovering the edge highlights one page slice and shows a label: page number and
   title.
 - Clicking turns to that page's spread with one animated turn
-  (`pageFlip.flip(page)`); from a closed book it also slides the book open.
+  (through the adapter's `flipTo`, which starts StPageFlip's turn from a real corner); from a closed book it also slides the book open.
 - Disabled while zoomed.
 
 ### Chapter tabs

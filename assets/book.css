@@ -25,6 +25,10 @@
 /* Positioned and sized to exactly the open book by book.js (fitScene) */
 .book-shift {
   position: absolute;
+}
+
+/* Only a page turn that opens or closes the book animates its offset */
+.book-shift.is-sliding {
   transition: transform var(--flip-ms, 800ms) ease;
 }
 
@@ -232,12 +236,14 @@
 
 .viewport.is-zoomed .zoom-hole { opacity: 1; }
 
-:is(.book, .spread-preview) [data-zoom] {
+.book [data-zoom],
+.p-current .spread-preview [data-zoom] {
   border-radius: 6px;
   cursor: zoom-in;
 }
 
-:is(.book, .spread-preview) [data-zoom]:hover {
+.book [data-zoom]:hover,
+.p-current .spread-preview [data-zoom]:hover {
   outline: 4px solid color-mix(in srgb, var(--accent) 70%, transparent);
   outline-offset: 10px;
 }

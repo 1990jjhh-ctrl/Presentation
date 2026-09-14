@@ -18,6 +18,12 @@ let start = 0;            // first page of the visible spread
 let pageFlip = null;      // StPageFlip instance, audience window only
 let presenter = null;     // presenter panes, presenter window only
 const els = {};
+// Turn state. StPageFlip reports turns through events, so book.js mirrors them:
+// - bookState: the library's state, taken from its changeState event
+// - flipTarget: spread start of a turn this code started, until the book is at rest
+// - queued / queuedZoom: a turn or zoom requested while a page was moving,
+//   replayed in a microtask once the book is at rest
+// - pendingRemote: a spread requested by the other window, so it is not sent back
 let pendingRemote = null; // spread requested by the other window; not echoed back
 let queued = null;        // turn requested while a page was still moving
 let ready = false;
@@ -83,6 +89,9 @@ function buildScene() {
   els.scene = deck.parentElement.querySelector('.scene');
   els.shift = els.scene.querySelector('.book-shift');
   els.book = els.scene.querySelector('.book');
+  els.shift.addEventListener('transitionend', (e) => {
+    if (e.target === els.shift) els.shift.classList.remove('is-sliding');
+  });
 }
 
 // StPageFlip draws turning stiff pages as if the book filled its container, so the
@@ -130,18 +139,30 @@ function createBook() {
   applyLayout();
 }
 
-function applyLayout() {
+function applyLayout({ animate = false } = {}) {
   if (!pageFlip) return;
   const { pageWidth } = pageFlip.getBoundsRect();
   els.shift.style.setProperty('--page-scale', pageWidth / model.PAGE_WIDTH);
-  els.shift.style.transform = `translateX(${model.closedOffset(start, count, pageWidth)}px)`;
+  // During a turn this code started, lay out for where the turn is heading,
+  // so a resize mid-turn does not snap the book back
+  const at = isBusy() && flipTarget !== null ? flipTarget : start;
+  setOffset(model.closedOffset(at, count, pageWidth), animate);
   layoutNavigation();
+}
+
+// Shifts the book sideways so a closed book is centred. Turns animate it;
+// loading and resizing apply it at once.
+function setOffset(offset, animate) {
+  const transform = `translateX(${offset}px)`;
+  if (els.shift.style.transform === transform) return;
+  els.shift.classList.toggle('is-sliding', animate);
+  els.shift.style.transform = transform;
 }
 
 function onFlip(newStart) {
   start = newStart;
   if (!ready) return;
-  applyLayout();
+  applyLayout({ animate: true });
   const silent = pendingRemote === start;
   if (silent) pendingRemote = null;
   spreadChanged({ silent });
@@ -149,9 +170,14 @@ function onFlip(newStart) {
 
 function onState(flipState) {
   bookState = flipState;
-  // Opening a closed book: slide to the open position while the cover turns
-  if (flipState === 'flipping' && (start === 0 || start === count - 1)) {
-    els.shift.style.transform = 'translateX(0px)';
+  // A turn that opens or closes the book slides it while the cover turns
+  if (flipState === 'flipping') {
+    const opening = start === 0 || start === count - 1;
+    const closing = flipTarget === 0 || flipTarget === count - 1;
+    if (opening || closing) {
+      const { pageWidth } = pageFlip.getBoundsRect();
+      setOffset(closing ? model.closedOffset(flipTarget, count, pageWidth) : 0, true);
+    }
   }
   if (BUSY_STATES.includes(flipState)) return;
 
@@ -178,10 +204,11 @@ function replayQueued() {
 
 // ---------------------------------------------------------------- navigation
 
-// StPageFlip 2.0.7's flipNext/flipPrev start from a point that ignores the book's
-// offset inside its block, so its corner check rejects them while
-// disableFlipByClick is on. Start the turn from a real bottom corner instead,
-// preparing the spread index the way its own flipToPage does.
+// Starts a turn from a real bottom corner, preparing the spread index the way
+// StPageFlip's own flipToPage does. Its flipNext/flipPrev build their start point
+// without the book's offset inside its container. That offset is 0 because
+// fitScene sizes the container to the book (touch swipes rely on this); starting
+// from an explicit corner keeps key, edge and tab turns working even if it is not.
 function flipTo(target) {
   const collection = pageFlip.getPageCollection();
   const current = collection.getCurrentSpreadIndex();
@@ -545,6 +572,12 @@ Deck.modes.book = {
 
     if (panes) {
       presenter = panes;
+      // The presenter shows copies of the pages; keep the originals out of sight and silent
+      deck.hidden = true;
+      for (const video of deck.querySelectorAll('video')) {
+        video.removeAttribute('autoplay');
+        video.pause();
+      }
       buildPresenterPreviews();
       setupPresenterZoom();
     } else {
@@ -566,6 +599,11 @@ Deck.modes.book = {
   goToHash(n, { silent = false } = {}) {
     if (count === 0) return;
     const target = model.startFromHash(n, count);
+    // A page is still turning: StPageFlip would finish that turn after an instant jump
+    if (isBusy()) {
+      queued = { target, silent };
+      return;
+    }
     if (target === start) {
       Deck.setHash(model.hashFromStart(start));
       return;

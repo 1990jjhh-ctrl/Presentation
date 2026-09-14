@@ -25,4 +25,11 @@ test('printing a book gives one A4 page per book page', async ({ page }) => {
   const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
   const pages = pdf.toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? [];
   expect(pages.length).toBe(8);
+  const boxes = pdf.toString('latin1').match(/\/MediaBox\s*\[\s*0\s+0\s+[\d.]+\s+[\d.]+\s*\]/g) ?? [];
+  expect(boxes.length).toBeGreaterThan(0);
+  for (const box of boxes) {
+    const [, width, height] = box.match(/([\d.]+)\s+([\d.]+)\s*\]$/);
+    expect(Math.abs(Number(width) - 595)).toBeLessThan(2);
+    expect(Math.abs(Number(height) - 842)).toBeLessThan(2);
+  }
 });
