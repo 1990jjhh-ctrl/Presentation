@@ -35,6 +35,12 @@ test('a closed book hides its pages under the covers', async ({ page }) => {
   await expect(page.locator('.stack-left')).toBeVisible();
   await expect(page.locator('.tab').nth(0)).toBeVisible();
   await page.keyboard.press('End');
+  // The chapter tabs are gone before the closing cover comes down; the stack stays meanwhile
+  // (read once, mid-turn: a retrying toBeHidden would also pass after the cover lands)
+  await page.waitForFunction(() => !window.Deck.book.idle);
+  expect(await page.evaluate(() => [...document.querySelectorAll('.tab')].every((t) => !t.checkVisibility())))
+    .toBe(true);
+  expect(await page.evaluate(() => !document.querySelector('.stack-left').hidden)).toBe(true);
   await page.waitForFunction(() => window.Deck.book.idle && window.Deck.book.start === 7);
   await expect(page.locator('.stack-left')).toBeHidden();
   await expect(page.locator('.stack-right')).toBeHidden();
